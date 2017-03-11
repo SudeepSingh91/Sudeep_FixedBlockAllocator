@@ -1,6 +1,8 @@
 #ifndef FIXEDBLOCKALLOCATOR_H
 #define FIXEDBLOCKALLOCATOR_H
 
+#include <stdint.h>
+
 class FixedBlockAllocator
 {
 public:

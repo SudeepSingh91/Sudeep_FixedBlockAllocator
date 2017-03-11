@@ -1,6 +1,5 @@
 #include "FixedBlockAllocator.h"
 
-#include <stdint.h>
 #include <new>
 
 #include "../DebugFunctions/DebugFunctions.h"
@@ -20,11 +19,11 @@ FixedBlockAllocator* FixedBlockAllocator::Create(void* i_memoryAddr, size_t i_me
 	i_memoryAddr = static_cast<uint8_t*>(i_memoryAddr) + sizeof(FixedBlockAllocator);
 	i_memorySize -= sizeof(FixedBlockAllocator);
 
-	FixedBlockAllocator* m_FixedBlockAllocator = new (FixedBlockAllocatorMem) FixedBlockAllocator(i_memoryAddr, i_memorySize, i_blockSize);
+	FixedBlockAllocator* m_fixedBlockAllocator = new (FixedBlockAllocatorMem) FixedBlockAllocator(i_memoryAddr, i_memorySize, i_blockSize);
 	
 	DEBUG_PRINT("Created FixedBlockAllocator with size %d", i_memorySize);
 
-	return m_FixedBlockAllocator;
+	return m_fixedBlockAllocator;
 }
 
 void FixedBlockAllocator::Destroy()
@@ -47,12 +46,11 @@ FixedBlockAllocator::FixedBlockAllocator(void* const i_memoryAddr, const size_t 
 	size_t numBytesToCheckAhead = (2 * i_blockSize) + sizeof(void*);
 
 #ifdef _DEBUG
-	firstBlock = firstBlock + m_gaurdBandSize;
+	firstBlock = static_cast<uint8_t*>(firstBlock) + m_gaurdBandSize;
 	numBytesToCheckAhead = numBytesToCheckAhead + (3 * m_gaurdBandSize);
 #endif
 
-	uint8_t* iterBlock = static_cast<uint8_t*>(firstBlock);
-	iterBlock = static_cast<uint8_t*>(RoundUp(iterBlock, i_blockSize));
+	uint8_t* iterBlock = static_cast<uint8_t*>(RoundUp(firstBlock, i_blockSize));
 	uint8_t* firstLinkNode = iterBlock - sizeof(void*);
 
 #ifdef _DEBUG
@@ -70,10 +68,10 @@ FixedBlockAllocator::FixedBlockAllocator(void* const i_memoryAddr, const size_t 
 		uint8_t* gaurdbandStart = iterBlock - m_gaurdBandSize;
 		uint8_t* gaurdbandEnd = iterBlock + i_blockSize;
 
-		for (uint8_t i = 0; i < m_gaurdBandSize; i++)
+		for (short i = 0; i < m_gaurdBandSize; i++)
 		{
-			gaurdbandStart = m_gaurdBandValue;
-			gaurdbandEnd = m_gaurdBandValue;
+			*gaurdbandStart = m_gaurdBandValue;
+			*gaurdbandEnd = m_gaurdBandValue;
 			gaurdbandStart++;
 			gaurdbandEnd++;
 		}
@@ -93,12 +91,28 @@ FixedBlockAllocator::FixedBlockAllocator(void* const i_memoryAddr, const size_t 
 	}
 
 	uint8_t** endLinkNode = reinterpret_cast<uint8_t**>(iterBlock - sizeof(void*));
+	uint8_t* endList = iterBlock + i_blockSize;
 
 #ifdef _DEBUG
 	endLinkNode = reinterpret_cast<uint8_t**>(iterBlock - sizeof(void*) - m_gaurdBandSize);
+	endList = endList + m_gaurdBandSize;
+
+	uint8_t* gaurdbandStart = iterBlock - m_gaurdBandSize;
+	uint8_t* gaurdbandEnd = iterBlock + i_blockSize;
+
+	for (short i = 0; i < m_gaurdBandSize; i++)
+	{
+		*gaurdbandStart = m_gaurdBandValue;
+		*gaurdbandEnd = m_gaurdBandValue;
+		gaurdbandStart++;
+		gaurdbandEnd++;
+	}
+
 #endif
 
-	*endLinkNode = nullptr;
+	*endLinkNode = endList;
+	uint8_t** endListPtr = reinterpret_cast<uint8_t**>(endList);
+	*endListPtr = nullptr;
 }
 
 FixedBlockAllocator::~FixedBlockAllocator()
@@ -108,13 +122,14 @@ FixedBlockAllocator::~FixedBlockAllocator()
 
 void* FixedBlockAllocator::Alloc()
 {
-	if (m_freeList != nullptr)
+	void* iterFreeList = m_freeList;
+	void** nextFreeList = reinterpret_cast<void**>(iterFreeList);
+	
+	if (*nextFreeList != nullptr)
 	{
-		void* iterFreeList = m_freeList;
-		void** nextFreeList = reinterpret_cast<void**>(iterFreeList);
 		m_freeList = *nextFreeList;
 
-		if (m_allocatedList != nullptr)
+		if (m_allocatedList == nullptr)
 		{
 			m_allocatedList = iterFreeList;
 		}
@@ -224,13 +239,13 @@ size_t FixedBlockAllocator::GetTotalFreeMemory() const
 {
 	size_t totalFreeBlockSize = 0;
 	void* iterFreeList = m_freeList;
+	void** nextFreeList = reinterpret_cast<void**>(iterFreeList);
 
-	while (iterFreeList != nullptr)
+	while (*nextFreeList != nullptr)
 	{
 		totalFreeBlockSize += m_blockSize;
-
-		void** nextFreeList = reinterpret_cast<void**>(iterFreeList);
 		iterFreeList = *nextFreeList;
+		nextFreeList = reinterpret_cast<void**>(iterFreeList);
 	}
 
 	DEBUG_PRINT("Total free memory has size %d", totalFreeBlockSize);
@@ -240,8 +255,6 @@ size_t FixedBlockAllocator::GetTotalFreeMemory() const
 
 bool FixedBlockAllocator::IsValidBlockToFree(void* const i_memoryAddr)
 {
-	assert(IsValidBlockToFree != nullptr);
-
 	void* iterAllocList = m_allocatedList;
 
 	while (iterAllocList != nullptr)

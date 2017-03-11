@@ -23,7 +23,7 @@ inline void* FixedBlockAllocator::RoundDown(void* const i_memoryAddr, const unsi
 
 inline bool FixedBlockAllocator::Contains(void* const i_memoryAddr) const
 {
-	assert(i_memory != nullptr);
+	assert(i_memoryAddr != nullptr);
 
-	return (i_memory >= m_heapBase) && (i_memory < (reinterpret_cast<uint8_t*>(m_heapBase) + m_heapSize));
+	return (i_memoryAddr >= m_heapBase) && (i_memoryAddr < (reinterpret_cast<uint8_t*>(m_heapBase) + m_heapSize));
 }
