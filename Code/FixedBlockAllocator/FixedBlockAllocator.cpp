@@ -3,25 +3,31 @@
 #include <new>
 
 #include "../DebugFunctions/DebugFunctions.h"
+#include "../BitArray/BitArray.h"
 
 #ifdef _DEBUG
 	const uint8_t FixedBlockAllocator::m_gaurdBandSize = sizeof(void*);
 	const uint8_t FixedBlockAllocator::m_gaurdBandValue = 0xFD;
 #endif
 
-FixedBlockAllocator* FixedBlockAllocator::Create(void* i_memoryAddr, size_t i_memorySize, const size_t i_blockSize)
+FixedBlockAllocator* FixedBlockAllocator::Create(const size_t i_numBlocks, const size_t i_blockSize)
 {
-	assert(i_memoryAddr != nullptr);
-	assert(i_blockSize > 0);
-	assert(i_memorySize > (sizeof(FixedBlockAllocator) + (sizeof(void*) * 2) + i_blockSize));
+	assert(i_numBlocks > 0);
+	assert(IsPowerOfTwo(i_blockSize));
 
-	void* FixedBlockAllocatorMem = i_memoryAddr;
-	i_memoryAddr = static_cast<uint8_t*>(i_memoryAddr) + sizeof(FixedBlockAllocator);
-	i_memorySize -= sizeof(FixedBlockAllocator);
+	const size_t cacheLineWidth = 64;
 
-	FixedBlockAllocator* m_fixedBlockAllocator = new (FixedBlockAllocatorMem) FixedBlockAllocator(i_memoryAddr, i_memorySize, i_blockSize);
+#if _DEBUG
+	void* FixedBlockAllocatorMem = _aligned_malloc((sizeof(FixedBlockAllocator) + (i_numBlocks * (i_blockSize + (2 * m_gaurdBandSize)))), cacheLineWidth);
+#else
+	void* FixedBlockAllocatorMem = _aligned_malloc((sizeof(FixedBlockAllocator) + (i_numBlocks * i_blockSize)), cacheLineWidth);
+#endif
+
+	void* heapBase = static_cast<uint8_t*>(FixedBlockAllocatorMem) + sizeof(FixedBlockAllocator);
+
+	FixedBlockAllocator* m_fixedBlockAllocator = new (FixedBlockAllocatorMem) FixedBlockAllocator(heapBase, i_numBlocks, i_blockSize);
 	
-	DEBUG_PRINT("Created FixedBlockAllocator with size %d", i_memorySize);
+	DEBUG_PRINT("Created FixedBlockAllocator with number of blocks %d and size of blocks %d", i_numBlocks, i_blockSize);
 
 	return m_fixedBlockAllocator;
 }
@@ -33,86 +39,38 @@ void FixedBlockAllocator::Destroy()
 	_aligned_free(memoryToFree);
 }
 
-FixedBlockAllocator::FixedBlockAllocator(void* const i_memoryAddr, const size_t i_memorysize, const size_t i_blockSize) 
-	: m_heapSize(i_memorysize), m_blockSize(i_blockSize), m_heapBase(i_memoryAddr), m_allocatedList(nullptr), m_freeList(nullptr)
+FixedBlockAllocator::FixedBlockAllocator(void* const i_memoryAddr, const size_t i_numBlocks, const size_t i_blockSize)
+	: m_numBlocks(i_numBlocks), m_blockSize(i_blockSize), m_heapBase(i_memoryAddr), m_bitArray(nullptr)
 {
 	assert(i_memoryAddr != nullptr);
-	assert(i_blockSize > 0);
-	assert(i_memorysize > ((sizeof(void*) * 2) + i_blockSize));
+	assert(i_numBlocks > 0);
+	assert(IsPowerOfTwo(i_blockSize));
 
 	DEBUG_PRINT("Called constructor of Fixed Block Allocator");
 
-	void* firstBlock = static_cast<uint8_t*>(i_memoryAddr) + sizeof(void*);
-	size_t numBytesToCheckAhead = (2 * i_blockSize) + sizeof(void*);
+	const bool isBitArrayClear = true;
+	m_bitArray = new BitArray(i_numBlocks, isBitArrayClear);
 
 #ifdef _DEBUG
-	firstBlock = static_cast<uint8_t*>(firstBlock) + m_gaurdBandSize;
-	numBytesToCheckAhead = numBytesToCheckAhead + (3 * m_gaurdBandSize);
-#endif
 
-	uint8_t* iterBlock = static_cast<uint8_t*>(RoundUp(firstBlock, i_blockSize));
-	uint8_t* firstLinkNode = iterBlock - sizeof(void*);
-
-#ifdef _DEBUG
-	firstLinkNode = firstLinkNode - m_gaurdBandSize;
-#endif
-
-	m_freeList = firstLinkNode;
-
-	while ((iterBlock + numBytesToCheckAhead) <= (static_cast<uint8_t*>(m_heapBase) + i_memorysize))
+	uint8_t* blockAddr = static_cast<uint8_t*>(m_heapBase);
+	for (size_t i = 0; i < i_numBlocks; i++)
 	{
-		uint8_t** prevLinkNode = reinterpret_cast<uint8_t**>(iterBlock - sizeof(void*));
-		uint8_t* nextLinkNode = iterBlock + i_blockSize + sizeof(void*);
+		for (short i = 0; i < m_gaurdBandSize; i++)
+		{
+			*blockAddr = m_gaurdBandValue;
+			blockAddr++;
+		}
 
-#ifdef _DEBUG
-		uint8_t* gaurdbandStart = iterBlock - m_gaurdBandSize;
-		uint8_t* gaurdbandEnd = iterBlock + i_blockSize;
+		blockAddr = blockAddr + m_blockSize;
 
 		for (short i = 0; i < m_gaurdBandSize; i++)
 		{
-			*gaurdbandStart = m_gaurdBandValue;
-			*gaurdbandEnd = m_gaurdBandValue;
-			gaurdbandStart++;
-			gaurdbandEnd++;
+			*blockAddr = m_gaurdBandValue;
+			blockAddr++;
 		}
-
-		prevLinkNode = reinterpret_cast<uint8_t**>(iterBlock - m_gaurdBandSize - sizeof(void*));
-		nextLinkNode = nextLinkNode + (2 * m_gaurdBandSize);
-#endif
-
-		iterBlock = static_cast<uint8_t*>(RoundUp(nextLinkNode, i_blockSize));
-		nextLinkNode = iterBlock - sizeof(void*);
-
-#ifdef _DEBUG
-		nextLinkNode = nextLinkNode - m_gaurdBandSize;
-#endif
-
-		*prevLinkNode = nextLinkNode;
 	}
-
-	uint8_t** endLinkNode = reinterpret_cast<uint8_t**>(iterBlock - sizeof(void*));
-	uint8_t* endList = iterBlock + i_blockSize;
-
-#ifdef _DEBUG
-	endLinkNode = reinterpret_cast<uint8_t**>(iterBlock - sizeof(void*) - m_gaurdBandSize);
-	endList = endList + m_gaurdBandSize;
-
-	uint8_t* gaurdbandStart = iterBlock - m_gaurdBandSize;
-	uint8_t* gaurdbandEnd = iterBlock + i_blockSize;
-
-	for (short i = 0; i < m_gaurdBandSize; i++)
-	{
-		*gaurdbandStart = m_gaurdBandValue;
-		*gaurdbandEnd = m_gaurdBandValue;
-		gaurdbandStart++;
-		gaurdbandEnd++;
-	}
-
 #endif
-
-	*endLinkNode = endList;
-	uint8_t** endListPtr = reinterpret_cast<uint8_t**>(endList);
-	*endListPtr = nullptr;
 }
 
 FixedBlockAllocator::~FixedBlockAllocator()
@@ -122,34 +80,22 @@ FixedBlockAllocator::~FixedBlockAllocator()
 
 void* FixedBlockAllocator::Alloc()
 {
-	void* iterFreeList = m_freeList;
-	void** nextFreeList = reinterpret_cast<void**>(iterFreeList);
-	
-	if (*nextFreeList != nullptr)
+	size_t freeBit = 0;
+
+	if(m_bitArray->GetFirstClearbit(freeBit))
 	{
-		m_freeList = *nextFreeList;
+		m_bitArray->SetBit(freeBit);
 
-		if (m_allocatedList == nullptr)
-		{
-			m_allocatedList = iterFreeList;
-		}
-		else
-		{
-			*nextFreeList = m_allocatedList;
-			m_allocatedList = iterFreeList;
-		}
-
-		uint8_t* addrToReturn = static_cast<uint8_t*>(iterFreeList) + sizeof(void*);
-
-#ifdef _DEBUG
-		addrToReturn = addrToReturn + m_gaurdBandSize;
+#if _DEBUG
+		uint8_t* addrToReturn = static_cast<uint8_t*>(m_heapBase) + ((freeBit - 1) * (m_blockSize + (2 * m_gaurdBandSize))) + m_gaurdBandSize;
+#elif
+		uint8_t* addrToReturn = static_cast<uint8_t*>(m_heapBase) + ((freeBit - 1) * m_blockSize);
 #endif
 
 		DEBUG_PRINT("Allocated block from free list");
 
 		return addrToReturn;
 	}
-
 	else
 	{
 		DEBUG_PRINT("No free blocks in the Fixed Block Allocator of size %d", m_blockSize);
@@ -161,91 +107,36 @@ void* FixedBlockAllocator::Alloc()
 void FixedBlockAllocator::Free(void* const i_memoryAddr)
 {
 	assert(i_memoryAddr != nullptr);
-	
-	if (m_allocatedList != nullptr)
+	assert(IsValidBlockToFree(i_memoryAddr));
+
+#if _DEBUG
+	size_t bitNumber = ((static_cast<uint8_t*>(i_memoryAddr) - static_cast<uint8_t*>(m_heapBase)) / (m_blockSize + (2 * m_gaurdBandSize))) + 1;
+#elif
+	size_t bitNumber = ((static_cast<uint8_t*>(i_memoryAddr) - static_cast<uint8_t*>(m_heapBase)) / m_blockSize) + 1;
+#endif
+
+	if (m_bitArray->IsBitSet(bitNumber))
 	{
-		uint8_t** iterAllocList = reinterpret_cast<uint8_t**>(static_cast<uint8_t*>(i_memoryAddr) - sizeof(void*));
-
-#ifdef _DEBUG
-		*iterAllocList = *iterAllocList - m_gaurdBandSize;
-#endif
-
-		assert(IsValidBlockToFree(*iterAllocList));
-
-		if (*iterAllocList != m_allocatedList)
-		{
-			uint8_t** prevAllocList = reinterpret_cast<uint8_t**>(static_cast<uint8_t*>(i_memoryAddr) - (2 * sizeof(void*)) - m_blockSize);
-
-#ifdef _DEBUG
-			*prevAllocList = *prevAllocList - (3 * m_gaurdBandSize);
-#endif
-
-			*prevAllocList = *iterAllocList;
-		}
-		else
-		{
-			m_allocatedList = *iterAllocList;
-		}
+		m_bitArray->ClearBit(bitNumber);
 
 		DEBUG_PRINT("Freed %p", i_memoryAddr);
-
-		if (m_freeList == nullptr)
-		{
-			m_freeList = reinterpret_cast<uint8_t*>(iterAllocList);
-		}
-		else
-		{
-			*iterAllocList = static_cast<uint8_t*>(m_freeList);
-			m_freeList = *iterAllocList;
-		}
 	}
 	else
 	{
-		DEBUG_PRINT("There is no block to free in this fixed block allocator");
-	}
+		DEBUG_PRINT("%p block is already free", i_memoryAddr);
+	}	
 }
 
-bool FixedBlockAllocator::IsAllocated(void* const i_memoryAddr) const
-{
-	assert(i_memoryAddr != nullptr);
-
-	void* iterAllocList = m_allocatedList;
-
-	while (iterAllocList != nullptr)
-	{
-		uint8_t* memAddrAllocated = static_cast<uint8_t*>(iterAllocList) + sizeof(void*);
-
-#ifdef _DEBUG
-		memAddrAllocated = memAddrAllocated + m_gaurdBandSize;
-#endif
-
-		if (memAddrAllocated == i_memoryAddr)
-		{
-			DEBUG_PRINT("%p is allocated", i_memoryAddr);
-
-			return true;
-		}
-
-		void** nextAllocList = reinterpret_cast<void**>(iterAllocList);
-		iterAllocList = *nextAllocList;
-	}
-
-	DEBUG_PRINT("%p is not allocated", i_memoryAddr);
-
-	return false;
-}
 
 size_t FixedBlockAllocator::GetTotalFreeMemory() const
 {
 	size_t totalFreeBlockSize = 0;
-	void* iterFreeList = m_freeList;
-	void** nextFreeList = reinterpret_cast<void**>(iterFreeList);
-
-	while (*nextFreeList != nullptr)
+	for (size_t i = 1; i <= m_numBlocks; i++)
 	{
-		totalFreeBlockSize += m_blockSize;
-		iterFreeList = *nextFreeList;
-		nextFreeList = reinterpret_cast<void**>(iterFreeList);
+		if (m_bitArray->IsBitClear(i))
+		{
+			totalFreeBlockSize += m_blockSize;
+		}
 	}
 
 	DEBUG_PRINT("Total free memory has size %d", totalFreeBlockSize);
@@ -255,19 +146,32 @@ size_t FixedBlockAllocator::GetTotalFreeMemory() const
 
 bool FixedBlockAllocator::IsValidBlockToFree(void* const i_memoryAddr)
 {
-	void* iterAllocList = m_allocatedList;
+	uint8_t* heapIter = static_cast<uint8_t*>(m_heapBase);
+	
+#if _DEBUG
+	uint8_t* heapEnd = static_cast<uint8_t*>(m_heapBase) + (m_numBlocks * (m_blockSize + (2 * m_gaurdBandSize)));
+#elif
+	uint8_t* heapEnd = static_cast<uint8_t*>(m_heapBase) + (m_numBlocks * m_blockSize);
+#endif
 
-	while (iterAllocList != nullptr)
+	while (heapIter < heapEnd)
 	{
-		if (iterAllocList == i_memoryAddr)
+#ifdef _DEBUG
+		heapIter = heapIter + m_gaurdBandSize;
+#endif
+		
+		if (heapIter == i_memoryAddr)
 		{
 			DEBUG_PRINT("%p is a valid block to free", i_memoryAddr);
 			
 			return true;
 		}
 		
-		void** nextAllocList = reinterpret_cast<void**>(iterAllocList);
-		iterAllocList = *nextAllocList;
+		heapIter = heapIter + m_blockSize;
+
+#ifdef _DEBUG
+		heapIter = heapIter + m_gaurdBandSize;
+#endif
 	}
 
 	DEBUG_PRINT("%p is not a valid block to free", i_memoryAddr);

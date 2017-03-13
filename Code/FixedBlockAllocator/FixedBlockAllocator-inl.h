@@ -25,5 +25,9 @@ inline bool FixedBlockAllocator::Contains(void* const i_memoryAddr) const
 {
 	assert(i_memoryAddr != nullptr);
 
-	return (i_memoryAddr >= m_heapBase) && (i_memoryAddr < (reinterpret_cast<uint8_t*>(m_heapBase) + m_heapSize));
+#if _DEBUG
+	return (i_memoryAddr >= m_heapBase) && (i_memoryAddr < (reinterpret_cast<uint8_t*>(m_heapBase) + (m_numBlocks * (m_blockSize + (2 * m_gaurdBandSize)))));
+#else
+	return (i_memoryAddr >= m_heapBase) && (i_memoryAddr < (reinterpret_cast<uint8_t*>(m_heapBase) + (m_numBlocks * m_blockSize)));
+#endif
 }

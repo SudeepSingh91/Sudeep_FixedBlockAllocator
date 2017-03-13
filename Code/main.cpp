@@ -4,37 +4,39 @@
 
 void main()
 {
-	void* pmemory = _aligned_malloc(128, 64);
-	
-	FixedBlockAllocator* fixedAllocator = FixedBlockAllocator::Create(pmemory, 128, 4);
+	const size_t num = 6;
+	const size_t size = 4;
+	FixedBlockAllocator* m_fixedAllocator = FixedBlockAllocator::Create(num, size);
 
-	float* m1 = static_cast<float*>(fixedAllocator->Alloc());
+	float* m1 = static_cast<float*>(m_fixedAllocator->Alloc());
 	*m1 = 4.0f;
-	size_t total1 = fixedAllocator->GetTotalFreeMemory();
-	float* m2 = static_cast<float*>(fixedAllocator->Alloc());
+	size_t t1 = m_fixedAllocator->GetTotalFreeMemory();
+
+	float* m2 = static_cast<float*>(m_fixedAllocator->Alloc());
 	*m2 = 4.0f;
-	size_t total2 = fixedAllocator->GetTotalFreeMemory();
-	float* m3 = static_cast<float*>(fixedAllocator->Alloc());
+	size_t t2 = m_fixedAllocator->GetTotalFreeMemory();
+
+	float* m3 = static_cast<float*>(m_fixedAllocator->Alloc());
 	*m3 = 4.0f;
-	size_t total3 = fixedAllocator->GetTotalFreeMemory();
-	float* m4 = static_cast<float*>(fixedAllocator->Alloc());
+	size_t t3 = m_fixedAllocator->GetTotalFreeMemory();
+
+	float* m4 = static_cast<float*>(m_fixedAllocator->Alloc());
 	*m4 = 4.0f;
-	size_t total4 = fixedAllocator->GetTotalFreeMemory();
-	float* m5 = static_cast<float*>(fixedAllocator->Alloc());
-	*m5 = 4.0f;
-	size_t total5 = fixedAllocator->GetTotalFreeMemory();
-	float* m6 = static_cast<float*>(fixedAllocator->Alloc());
-	*m6 = 4.0f;
-	size_t total6 = fixedAllocator->GetTotalFreeMemory();
-	float* m7 = static_cast<float*>(fixedAllocator->Alloc());
-	size_t total7 = fixedAllocator->GetTotalFreeMemory();
+	size_t t4 = m_fixedAllocator->GetTotalFreeMemory();
 
-	/*bool b1 = fixedAllocator->Contains(m2);
-	bool b2 = fixedAllocator->Contains(m1 - 100);
-	bool b3 = fixedAllocator->IsAllocated(m3);*/
+	/*m_fixedAllocator->Free(m2);
+	size_t t5 = m_fixedAllocator->GetTotalFreeMemory();
 
-	//fixedAllocator->Free(m2);
-	//fixedAllocator->Free(m4);
+	m_fixedAllocator->Free(m3);
+	size_t t6 = m_fixedAllocator->GetTotalFreeMemory();*/
 
-	fixedAllocator->Destroy();
+	float* m5 = static_cast<float*>(m_fixedAllocator->Alloc());
+	*m5 = 8.0f;
+
+	float* m6 = static_cast<float*>(m_fixedAllocator->Alloc());
+	*m6 = 8.0f;
+
+	float* m7 = static_cast<float*>(m_fixedAllocator->Alloc());
+
+	m_fixedAllocator->Destroy();
 }

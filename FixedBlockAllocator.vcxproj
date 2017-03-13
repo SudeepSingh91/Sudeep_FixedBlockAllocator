@@ -154,11 +154,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Code\BitArray\BitArray.h" />
     <ClInclude Include="Code\DebugFunctions\DebugFunctions.h" />
     <ClInclude Include="Code\FixedBlockAllocator\FixedBlockAllocator-inl.h" />
     <ClInclude Include="Code\FixedBlockAllocator\FixedBlockAllocator.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Code\BitArray\BitArray.cpp" />
     <ClCompile Include="Code\DebugFunctions\DebugFunctions.cpp" />
     <ClCompile Include="Code\FixedBlockAllocator\FixedBlockAllocator.cpp" />
     <ClCompile Include="Code\main.cpp" />

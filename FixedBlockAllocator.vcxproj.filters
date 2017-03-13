@@ -19,11 +19,17 @@
     <Filter Include="Source Files\FixedBlockAllocator">
       <UniqueIdentifier>{f97a427b-0ede-47c8-975a-1c02ca2f1143}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\DebugFunctions">
-      <UniqueIdentifier>{fe5f05d1-349f-4629-b396-cb954df18058}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\DebugFunctions">
       <UniqueIdentifier>{1808c313-9ad2-4a50-9c4a-06e227f24877}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\BitArray">
+      <UniqueIdentifier>{ef61e19c-ebfe-4362-aeb5-d08432d03ad5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\BitArray">
+      <UniqueIdentifier>{a88c1b75-839a-4faf-ac49-2079de894c23}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\DebugFunctions">
+      <UniqueIdentifier>{fe5f05d1-349f-4629-b396-cb954df18058}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -36,6 +42,9 @@
     <ClInclude Include="Code\DebugFunctions\DebugFunctions.h">
       <Filter>Header Files\DebugFunctions</Filter>
     </ClInclude>
+    <ClInclude Include="Code\BitArray\BitArray.h">
+      <Filter>Header Files\BitArray</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Code\FixedBlockAllocator\FixedBlockAllocator.cpp">
@@ -46,6 +55,9 @@
     </ClCompile>
     <ClCompile Include="Code\main.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\BitArray\BitArray.cpp">
+      <Filter>Source Files\BitArray</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
