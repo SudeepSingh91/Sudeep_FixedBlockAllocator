@@ -164,12 +164,12 @@ bool BitArray::GetFirstSetBit(size_t& o_bitNumber) const
 
 	for (size_t i = 0; i < m_arraySize; i++)
 	{
-		for (size_t j = (bitwidth - m_numBits - 1); j < bitwidth; j++)
+		for (size_t j = (bitwidth - 1); j >= (bitwidth - m_numBits); j--)
 		{
 			const size_t one = 1;
 			if (m_bits[i] & (one << j))
 			{
-				o_bitNumber = (i * bitwidth) + j;
+				o_bitNumber = (i * bitwidth) + (bitwidth - j);
 
 				DEBUG_PRINT("First set bit is at %d", o_bitNumber);
 

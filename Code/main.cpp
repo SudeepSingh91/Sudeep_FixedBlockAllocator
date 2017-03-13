@@ -1,9 +1,18 @@
 #include "FixedBlockAllocator/FixedBlockAllocator.h"
 
+#if _DEBUG
+#include <crtdbg.h>
+#endif
+
 #include <malloc.h>
 
 void main()
 {
+#ifdef _DEBUG
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+	//_CrtSetBreakAlloc(79);
+#endif
+	
 	const size_t num = 6;
 	const size_t size = 4;
 	FixedBlockAllocator* m_fixedAllocator = FixedBlockAllocator::Create(num, size);
@@ -24,11 +33,11 @@ void main()
 	*m4 = 4.0f;
 	size_t t4 = m_fixedAllocator->GetTotalFreeMemory();
 
-	/*m_fixedAllocator->Free(m2);
+	m_fixedAllocator->Free(m2);
 	size_t t5 = m_fixedAllocator->GetTotalFreeMemory();
 
 	m_fixedAllocator->Free(m3);
-	size_t t6 = m_fixedAllocator->GetTotalFreeMemory();*/
+	size_t t6 = m_fixedAllocator->GetTotalFreeMemory();
 
 	float* m5 = static_cast<float*>(m_fixedAllocator->Alloc());
 	*m5 = 8.0f;

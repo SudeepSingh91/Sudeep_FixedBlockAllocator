@@ -35,6 +35,7 @@ FixedBlockAllocator* FixedBlockAllocator::Create(const size_t i_numBlocks, const
 void FixedBlockAllocator::Destroy()
 {
 	void* memoryToFree = static_cast<uint8_t*>(m_heapBase) - sizeof(FixedBlockAllocator);
+	delete m_bitArray;
 	this->~FixedBlockAllocator();
 	_aligned_free(memoryToFree);
 }
@@ -88,7 +89,7 @@ void* FixedBlockAllocator::Alloc()
 
 #if _DEBUG
 		uint8_t* addrToReturn = static_cast<uint8_t*>(m_heapBase) + ((freeBit - 1) * (m_blockSize + (2 * m_gaurdBandSize))) + m_gaurdBandSize;
-#elif
+#elif NDEBUG
 		uint8_t* addrToReturn = static_cast<uint8_t*>(m_heapBase) + ((freeBit - 1) * m_blockSize);
 #endif
 
@@ -111,7 +112,7 @@ void FixedBlockAllocator::Free(void* const i_memoryAddr)
 
 #if _DEBUG
 	size_t bitNumber = ((static_cast<uint8_t*>(i_memoryAddr) - static_cast<uint8_t*>(m_heapBase)) / (m_blockSize + (2 * m_gaurdBandSize))) + 1;
-#elif
+#elif NDEBUG
 	size_t bitNumber = ((static_cast<uint8_t*>(i_memoryAddr) - static_cast<uint8_t*>(m_heapBase)) / m_blockSize) + 1;
 #endif
 
@@ -150,7 +151,7 @@ bool FixedBlockAllocator::IsValidBlockToFree(void* const i_memoryAddr)
 	
 #if _DEBUG
 	uint8_t* heapEnd = static_cast<uint8_t*>(m_heapBase) + (m_numBlocks * (m_blockSize + (2 * m_gaurdBandSize)));
-#elif
+#elif NDEBUG
 	uint8_t* heapEnd = static_cast<uint8_t*>(m_heapBase) + (m_numBlocks * m_blockSize);
 #endif
 
