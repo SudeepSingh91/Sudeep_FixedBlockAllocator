@@ -24,10 +24,7 @@ private:
 
 	~FixedBlockAllocator();
 
-	inline static bool IsPowerOfTwo(const unsigned int i_value);
-
-	inline void* RoundUp(void* const i_memoryAddr, const unsigned int i_align);
-	inline void* RoundDown(void* const i_memoryAddr, const unsigned int i_align);
+	inline static bool IsPowerOfTwo(const size_t i_value);
 
 	bool IsValidBlockToFree(void* const i_memoryAddr);
 
