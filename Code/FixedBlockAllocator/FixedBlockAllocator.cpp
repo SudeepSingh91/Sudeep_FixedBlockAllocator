@@ -57,7 +57,7 @@ FixedBlockAllocator::FixedBlockAllocator(void* const i_memoryAddr, const size_t 
 	uint8_t* blockAddr = static_cast<uint8_t*>(m_heapBase);
 	for (size_t i = 0; i < i_numBlocks; i++)
 	{
-		for (short i = 0; i < m_gaurdBandSize; i++)
+		for (uint8_t i = 0; i < m_gaurdBandSize; i++)
 		{
 			*blockAddr = m_gaurdBandValue;
 			blockAddr++;
@@ -65,7 +65,7 @@ FixedBlockAllocator::FixedBlockAllocator(void* const i_memoryAddr, const size_t 
 
 		blockAddr = blockAddr + m_blockSize;
 
-		for (short i = 0; i < m_gaurdBandSize; i++)
+		for (uint8_t i = 0; i < m_gaurdBandSize; i++)
 		{
 			*blockAddr = m_gaurdBandValue;
 			blockAddr++;
